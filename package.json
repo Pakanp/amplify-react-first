@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.289.0",
     "@googlemaps/markerclusterer": "^2.0.15",
     "@react-google-maps/api": "^2.18.1",
     "@react-google-maps/marker-clusterer": "^2.16.1",
