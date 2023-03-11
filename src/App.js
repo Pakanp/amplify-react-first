@@ -1,10 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleMap, Marker, InfoWindow, MarkerClusterer } from "@react-google-maps/api";
+import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+
 
 function Map() {
   const [map, setMap] = useState(null);
   const [reports, setReports] = useState([]);
   const [openMarkers, setOpenMarkers] = useState([]);
+
+  
+
+  const secretName = "google-maps-api-key";
+  const region = "us-east-1";
+  const client = new SecretsManagerClient({ region });
+  
+  const getApiKey = async () => {
+    let response;
+    try {
+      response = await client.send(new GetSecretValueCommand({ SecretId: secretName, VersionStage: "AWSCURRENT" }));
+    } catch (error) {
+      // For a list of exceptions thrown, see
+      // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+      throw error;
+    }
+    const secret = response.SecretString;
+    return secret;
+  };
+
 
   useEffect(() => {
     // Fetch data from the external API
@@ -40,11 +62,16 @@ function Map() {
       const center = bounds.getCenter();
       const zoom = map.getZoom() + 1;
   
-      // Use the animateTo method to smoothly zoom into the cluster
-      map.animateTo({
-        center: center,
-        zoom: zoom,
-      });
+      if (zoom < 12) {
+        // Use the panTo method to smoothly pan to the cluster center
+        map.panTo(center);
+      } else {
+        // Use the animateTo method to smoothly zoom into the cluster
+        map.animateTo({
+          center: center,
+          zoom: zoom,
+        });
+      }
     }
   };
 
@@ -63,7 +90,12 @@ function Map() {
   });
 
   return (
-    <GoogleMap mapContainerStyle={containerStyle} center={initialCenter} zoom={16.5} onLoad={onLoad}>
+    <GoogleMap 
+      mapContainerStyle={containerStyle} 
+      center={initialCenter} 
+      zoom={16.5} 
+      onLoad={onLoad}
+      apiKey="">
       <MarkerClusterer gridSize={50} maxZoom={20}>
         {(clusterer) =>
             markers.map((marker) => (
