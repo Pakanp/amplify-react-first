@@ -1,34 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleMap, Marker, InfoWindow, MarkerClusterer } from "@react-google-maps/api";
-import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+import { GoogleMap, Marker, InfoWindow, MarkerClusterer, LoadScript } from "@react-google-maps/api";
 
 
 function Map() {
   const [map, setMap] = useState(null);
   const [reports, setReports] = useState([]);
   const [openMarkers, setOpenMarkers] = useState([]);
-
-  
-
-  const secretName = "google-maps-api-key";
-  const region = "us-east-1";
-  const client = new SecretsManagerClient({ region });
-  
-  const getApiKey = async () => {
-    let response;
-    try {
-      response = await client.send(new GetSecretValueCommand({ SecretId: secretName, VersionStage: "AWSCURRENT" }));
-    } catch (error) {
-      // For a list of exceptions thrown, see
-      // https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-      throw error;
-    }
-    const secret = response.SecretString;
-    return secret;
-  };
-
+  const [apiKey, setApiKey] = useState('');
 
   useEffect(() => {
+    fetch('https://3g9c51glka.execute-api.us-east-1.amazonaws.com/dev/maps')
+      .then(response => response.json())
+      .then(data => {
+        setApiKey(JSON.parse(data.body).apiKey);
+      })
+      .catch(error => {
+        console.error('Failed to fetch API key:', error);
+      });
     // Fetch data from the external API
     fetch('https://y16bh31ap4.execute-api.us-east-1.amazonaws.com/dev/reports')
       .then(response => response.json())
@@ -90,36 +78,45 @@ function Map() {
   });
 
   return (
-    <GoogleMap 
-      mapContainerStyle={containerStyle} 
-      center={initialCenter} 
-      zoom={16.5} 
-      onLoad={onLoad}
-      apiKey="">
-      <MarkerClusterer gridSize={50} maxZoom={20}>
-        {(clusterer) =>
-            markers.map((marker) => (
-              <Marker
-                key={marker.id}
-                position={{ lat: marker.lat, lng: marker.lng }}
-                onClick={() => onMarkerClick(marker, map)}
-                clusterer={clusterer}
-                text={marker.label}
-                label={marker.label}
-              />
-            ))
-          }
-      </MarkerClusterer>
-      {openMarkers.map((marker, index) => (
-        <InfoWindow 
-          key={marker.id}
-          position={{lat: marker.lat, lng: marker.lng}} 
-          onCloseClick={() => onCloseInfoWindow(marker)}
-        >
-          <div>{marker.text}</div>
-        </InfoWindow>
-      ))}
-    </GoogleMap>
+    <>
+    {apiKey ? (
+      <LoadScript
+        googleMapsApiKey={apiKey}
+      >
+        <GoogleMap 
+          mapContainerStyle={containerStyle} 
+          center={initialCenter} 
+          zoom={16.5} 
+          onLoad={onLoad}>
+          <MarkerClusterer gridSize={50} maxZoom={20}>
+            {(clusterer) =>
+                markers.map((marker) => (
+                  <Marker
+                    key={marker.id}
+                    position={{ lat: marker.lat, lng: marker.lng }}
+                    onClick={() => onMarkerClick(marker, map)}
+                    clusterer={clusterer}
+                    text={marker.label}
+                    label={marker.label}
+                  />
+                ))
+              }
+          </MarkerClusterer>
+          {openMarkers.map((marker, index) => (
+            <InfoWindow 
+              key={marker.id}
+              position={{lat: marker.lat, lng: marker.lng}} 
+              onCloseClick={() => onCloseInfoWindow(marker)}
+            >
+              <div>{marker.text}</div>
+            </InfoWindow>
+          ))}
+        </GoogleMap>
+      </LoadScript>
+    ) : (
+      <div>Loading...</div>
+    )}
+    </>
   );
 }
 
